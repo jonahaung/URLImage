@@ -9,7 +9,6 @@
 import SwiftUI
 
 extension View {
-    /// Sets the image loader for network images within this view.
     public func networkImageLoader<T: URLImageLoader>(_ networkImageLoader: T) -> some View {
         environment(\.networkImageLoader, networkImageLoader)
     }

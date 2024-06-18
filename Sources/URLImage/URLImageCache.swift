@@ -10,10 +10,7 @@ import Foundation
 
 /// A type that temporarily stores images in memory, keyed by the URL from which they were loaded.
 public protocol URLImageCache: AnyObject, Sendable {
-    /// Returns the image associated with a given URL.
     func image(for url: URL) -> CGImage?
-    
-    /// Sets the image for the specified URL in the cache.
     func setImage(_ image: CGImage, for url: URL)
 }
 
