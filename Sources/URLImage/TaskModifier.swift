@@ -27,7 +27,7 @@ struct TaskModifier<T: Equatable>: ViewModifier {
     
     func body(content: Content) -> some View {
         content
-            .onAppear {
+            .task {
                 self.task = Task(priority: priority, operation: action)
             }
             .onDisappear {

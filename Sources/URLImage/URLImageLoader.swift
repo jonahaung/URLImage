@@ -1,5 +1,5 @@
 //
-//  PostUpdateAction.swift
+//  URLImageLoader.swift
 //  HomeForYou
 //
 //  Created by Aung Ko Min on 11/6/24.
@@ -10,10 +10,10 @@ import Foundation
 import ImageIO
 
 public protocol URLImageLoader: AnyObject, Sendable {
-    func image(from url: URL) async throws -> CGImage
+    func image(from url: URL, quality: ImageQuality) async throws -> CGImage
 }
 
-public actor DefaultNetworkImageLoader {
+public actor DefaultURLImageLoader {
     private enum Constants {
         static let memoryCapacity = 10 * 1024 * 1024
         static let diskCapacity = 100 * 1024 * 1024
@@ -22,12 +22,13 @@ public actor DefaultNetworkImageLoader {
     
     private let data: (URL) async throws -> (Data, URLResponse)
     private let cache: URLImageCache
+    private let imageResizer = DefaultImageResizer()
     
-    private var ongoingTasks: [URL: Task<CGImage, Error>] = [:]
+    private var ongoingTasks: [String: Task<CGImage, Error>] = [:]
     public init(cache: URLImageCache, session: URLSession) {
         self.init(cache: cache, data: session.data(from:))
     }
-    public static let shared = DefaultNetworkImageLoader(
+    public static let shared = DefaultURLImageLoader(
         cache: .default,
         session: .imageLoading(
             memoryCapacity: Constants.memoryCapacity,
@@ -45,53 +46,52 @@ public actor DefaultNetworkImageLoader {
     }
 }
 
-extension DefaultNetworkImageLoader: URLImageLoader {
-    public func image(from url: URL) async throws -> CGImage {
-        if let image = self.cache.image(for: url) {
+extension DefaultURLImageLoader: URLImageLoader {
+    public func image(from url: URL, quality: ImageQuality) async throws -> CGImage {
+        let cachingKey = cachingKey(for: url, quality: quality)
+        if let image = self.cache.image(for: cachingKey) {
             return image
         }
-        
-        if let task = self.ongoingTasks[url] {
+        if let task = self.ongoingTasks[cachingKey] {
             return try await task.value
         }
-        
         let task = Task<CGImage, Error> {
             let (data, response) = try await self.data(url)
-            
-            // remove ongoing task
-            self.ongoingTasks.removeValue(forKey: url)
+            self.ongoingTasks.removeValue(forKey: cachingKey)
             
             guard let statusCode = (response as? HTTPURLResponse)?.statusCode,
                   200..<300 ~= statusCode
             else {
                 throw URLError(.badServerResponse)
             }
-            
             guard
                 let source = CGImageSourceCreateWithData(data as CFData, nil),
                 let image = CGImageSourceCreateImageAtIndex(
                     source, 0,
                     [kCGImageSourceShouldCache: true] as CFDictionary
-                )
+                ),
+                let resizedImage = imageResizer.resize(from: image, quality: quality)
             else {
                 throw URLError(.cannotDecodeContentData)
             }
-            
-            // add image to cache
-            self.cache.setImage(image, for: url)
-            
-            return image
+            self.cache.setImage(resizedImage, for: cachingKey)
+            return resizedImage
         }
-        
-        // add ongoing task
-        self.ongoingTasks[url] = task
-        
+        self.ongoingTasks[cachingKey] = task
         return try await task.value
+    }
+    
+    private func cachingKey(for url: URL, quality: ImageQuality) -> String {
+        switch quality {
+        case .original:
+            return url.absoluteString
+        case .resized(let cGFloat):
+            return url.absoluteString.appending("%2resized=\(cGFloat)")
+        }
     }
 }
 
-extension URLImageLoader where Self == DefaultNetworkImageLoader {
-    /// The shared default network image loader.
+extension URLImageLoader where Self == DefaultURLImageLoader {
     public static var `default`: Self {
         .shared
     }

@@ -28,13 +28,12 @@ final class URLImageModel: ObservableObject {
             self.state = .init()
             return
         }
-        
         self.state.source = source
         
         let image: URLImageState
         
         do {
-            let cgImage = try await environment.imageLoader.image(from: source.url)
+            let cgImage = try await environment.imageLoader.image(from: source.url, quality: source.quality)
             image = .success(
                 image: .init(decorative: cgImage, scale: source.scale),
                 idealSize: CGSize(
@@ -45,7 +44,6 @@ final class URLImageModel: ObservableObject {
         } catch {
             image = .failure
         }
-        
         withTransaction(environment.transaction) {
             self.state.image = image
         }

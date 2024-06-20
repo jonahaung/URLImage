@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "URLImage",
-    platforms: [.iOS(.v17)],
+    platforms: [.iOS(.v17), .macOS(.v10_13)],
     products: [
         .library(
             name: "URLImage",

@@ -9,5 +9,6 @@ import Foundation
 
 struct ImageSource: Hashable {
     let url: URL
+    let quality: ImageQuality
     let scale: CGFloat
 }

@@ -1,5 +1,5 @@
 //
-//  PostUpdateAction.swift
+//  URLImageCache.swift
 //  HomeForYou
 //
 //  Created by Aung Ko Min on 11/6/24.
@@ -8,45 +8,33 @@
 import CoreGraphics
 import Foundation
 
-/// A type that temporarily stores images in memory, keyed by the URL from which they were loaded.
 public protocol URLImageCache: AnyObject, Sendable {
-    func image(for url: URL) -> CGImage?
-    func setImage(_ image: CGImage, for url: URL)
+    func image(for key: String) -> CGImage?
+    func setImage(_ image: CGImage, for key: String)
 }
 
-// MARK: - DefaultNetworkImageCache
-
-/// The default network image cache.
-public class DefaultNetworkImageCache {
+public class DefaultURLImageCache {
     private enum Constants {
         static let defaultCountLimit = 100
     }
-    
-    private let cache = NSCache<NSURL, CGImage>()
-    
-    /// Creates a default network image cache.
-    /// - Parameter countLimit: The maximum number of images that the cache should hold. If `0`,
-    ///                         there is no count limit. The default value is `0`.
+    private let cache = NSCache<NSString, CGImage>()
     public init(countLimit: Int = 0) {
         self.cache.countLimit = countLimit
     }
-    
-    /// A shared network image cache.
-    public static let shared = DefaultNetworkImageCache(countLimit: Constants.defaultCountLimit)
+    public static let shared = DefaultURLImageCache(countLimit: Constants.defaultCountLimit)
 }
 
-extension DefaultNetworkImageCache: URLImageCache, @unchecked Sendable {
-    public func image(for url: URL) -> CGImage? {
-        self.cache.object(forKey: url as NSURL)
+extension DefaultURLImageCache: URLImageCache, @unchecked Sendable {
+    public func image(for key: String) -> CGImage? {
+        self.cache.object(forKey: key as NSString)
     }
     
-    public func setImage(_ image: CGImage, for url: URL) {
-        self.cache.setObject(image, forKey: url as NSURL)
+    public func setImage(_ image: CGImage, for key: String) {
+        self.cache.setObject(image, forKey: key as NSString)
     }
 }
 
-extension URLImageCache where Self == DefaultNetworkImageCache {
-    /// The shared default network image cache.
+extension URLImageCache where Self == DefaultURLImageCache {
     static var `default`: Self {
         .shared
     }

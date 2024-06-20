@@ -1,5 +1,5 @@
 //
-//  PostUpdateAction.swift
+//  URLImage.swift
 //  HomeForYou
 //
 //  Created by Aung Ko Min on 11/6/24.
@@ -19,23 +19,34 @@ public struct URLImage<Content>: View where Content: View {
         .init(transaction: self.transaction, imageLoader: self.imageLoader)
     }
 
-    public init(url: URL?, scale: CGFloat = 1) where Content == _OptionalContent<Image> {
-        self.init(url: url, scale: scale) { state in
+    public init(url: URL?, quality: ImageQuality, scale: CGFloat = 1) where Content == _OptionalContent<Image> {
+        self.init(
+            url: url,
+            quality: quality, 
+            scale: scale
+        ) { state in
             _OptionalContent(state.image)
         }
     }
     public init<I>(
         url: URL?,
+        quality: ImageQuality,
         scale: CGFloat = 1,
         transaction: Transaction = .init(),
         @ViewBuilder content: @escaping (Image) -> I
     ) where Content == _OptionalContent<I>, I: View {
-        self.init(url: url, scale: scale, transaction: transaction) { state in
+        self.init(
+            url: url,
+            quality: quality,
+            scale: scale,
+            transaction: transaction
+        ) { state in
             _OptionalContent(state.image, content: content)
         }
     }
     public init<I, P>(
         url: URL?,
+        quality: ImageQuality,
         scale: CGFloat = 1,
         transaction: Transaction = .init(),
         @ViewBuilder content: @escaping (Image) -> I,
@@ -43,6 +54,7 @@ public struct URLImage<Content>: View where Content: View {
     ) where Content == _ConditionalContent<I, P>, I: View, P: View {
         self.init(
             url: url,
+            quality: quality,
             scale: scale,
             transaction: transaction,
             content: { state in
@@ -56,29 +68,36 @@ public struct URLImage<Content>: View where Content: View {
     }
     public init(
         url: URL?,
+        quality: ImageQuality,
         scale: CGFloat = 1,
         transaction: Transaction = .init(),
         @ViewBuilder content: @escaping (URLImageState) -> Content
     ) {
-        self.source = url.map { ImageSource(url: $0, scale: scale) }
+        self.source = url.map { ImageSource(url: $0, quality: quality, scale: scale) }
         self.transaction = transaction
         self.content = content
     }
     
     public var body: some View {
-        if #available(macOS 12.0, iOS 15.0, tvOS 15.0, watchOS 8.0, *) {
-            self.content(self.model.state.image)
-                .task(id: self.source) {
+        self.content(self.model.state.image)
+            .modifier(
+                TaskModifier(id: self.source) {
                     await self.model.onAppear(source: self.source, environment: self.environment)
                 }
-        } else {
-            self.content(self.model.state.image)
-                .modifier(
-                    TaskModifier(id: self.source) {
-                        await self.model.onAppear(source: self.source, environment: self.environment)
-                    }
-                )
-        }
+            )
+//        if #available(macOS 12.0, iOS 15.0, tvOS 15.0, watchOS 8.0, *) {
+//            self.content(self.model.state.image)
+//                .task(id: self.source) {
+//                    await self.model.onAppear(source: self.source, environment: self.environment)
+//                }
+//        } else {
+//            self.content(self.model.state.image)
+//                .modifier(
+//                    TaskModifier(id: self.source) {
+//                        await self.model.onAppear(source: self.source, environment: self.environment)
+//                    }
+//                )
+//        }
     }
 }
 
